@@ -1,0 +1,465 @@
+<HTML>
+ <HEAD>
+     <script src="./jquery-1.12.1.min.js">
+     </script>
+ 
+ 
+ <script>
+     
+     $(document).ready(function()
+     {
+       var gameCanvas = document.getElementById("gameCanvas");
+       var ctx =  gameCanvas.getContext("2d");
+       var explosionSprite;
+       var ballX=gameCanvas.width/2;
+       var ballY=gameCanvas.height/2;
+       var dx=2,
+            dy=-2;
+            var backgroundImg;
+            var backgroundPattern;
+       var rightPressed;
+       var leftPressed, spacePressed
+       var ballSprite;
+      var ball_crop_startX = 0;
+      var ball_crop_startY = 0;
+     var brickImg;
+      var x=1;
+      var explosionInterval = 1;
+      var victorySound, explosionSound, gameOverSound, gameMusic;
+     document.addEventListener("keypress", function(evt)
+     {
+         
+        if(evt.keyCode==37)
+        {
+            leftPressed = true;
+        }
+        else
+        if(evt.keyCode==39)
+        {
+            rightPressed=true;
+        }
+        else
+        if(evt.keyCode==0)
+        {
+            spacePressed=true;
+        }
+         
+     }, false);
+     
+     
+     victorySound = document.getElementById("victory");
+     explosionSound = document.getElementById("explosion");
+     gameOverSound = document.getElementById("gameOver");
+     gameMusic = document.getElementById("music");
+     gameMusic.loop=true;
+     
+     document.addEventListener("keyup", function(evt)
+     {
+         leftPressed=false;
+         rightPressed=false;
+         spacePressed=false;
+         
+     }, false);
+       
+       var successCondition=true;
+       
+       function drawBall(s)
+       {
+           ctx.beginPath();
+           
+           
+           
+              ctx.drawImage(ballSprite, ball_crop_startX, ball_crop_startY, 64, 64,ballX, ballY, 40, 40);
+            
+           
+            
+            if(x==8)
+            {
+         
+                ball_crop_startX+=64;
+               
+            if(ball_crop_startX==128)
+            {
+                ball_crop_startX=0;
+                ball_crop_startY+=64;
+            }
+            
+            if(ball_crop_startY==192)
+            {
+                ball_crop_startY = 0;
+            }
+            x=1;
+            }
+            ++x;
+           
+            
+            
+            
+           //ctx.arc(ballX, ballY,20, 0,Math.PI*2, false);
+          // ctx.strokeStyle="black";
+          // ctx.fillStyle="green";
+          // ctx.fill();
+           ctx.stroke();
+          ctx.closePath();
+          
+          
+          if(((ballX+41)>=gameCanvas.width)||((ballX-41)<=0))
+          {
+              dx=-dx;
+          }
+          
+          if(((ballY-41)<=0)||((ballY+35)>=gameCanvas.height))
+          {
+              dy=-dy;
+          }
+          
+          
+          if((ballY+21+15)>=gameCanvas.height)
+          {
+              successCondition = ((ballX>=paddleX)&&(ballX<=(paddleX+130)));
+              
+              if(!successCondition)
+              {
+                 
+                  gameMusic.loop = false;
+                  gameMusic.pause();
+                  gameOverSound.play();
+                 alert("You lose");
+                 location.reload();
+              }
+
+          }
+          
+           ballX+=dx;
+           ballY+=dy;
+           
+       }
+       
+       
+       var paddleX = gameCanvas.width/2;
+       var paddleY = (gameCanvas.height-15);
+       
+       var woodImage = new Image();
+       var woodPattern;
+       
+       var bricks = [];
+      var brickWidth=50, brickHeight=100;
+      
+       function initBricks(startX, startY)
+       {
+          var initStartX = startX;
+           for(var i=0;i<2;++i)
+           {
+               var brickRow=[];
+               for(var j=0;j<15;++j)
+               {
+                   var brickData = {
+                       
+                       brickStartX : startX,
+                       brickStartY : startY,
+                       brickEndX : startX+brickWidth,
+                       brickEndY : startY+brickHeight,
+                       collapsed: false,
+                       explosionCount:0
+                       
+                   };
+                   brickRow.push(brickData);
+                   startX+=brickWidth;
+               }
+               bricks.push(brickRow);
+               startY+=brickHeight;
+               startX=initStartX;
+           }
+           
+       }
+       
+       
+      function renderExplosion(spriteCount, brickX, brickY)
+       {
+           //96x96
+           
+           
+           ctx.beginPath();
+           var startX=100*spriteCount;
+          
+           
+           var startY=startX%900;
+           
+           if(startX==900)
+           {
+               startX=0;
+           }
+           
+           
+          ctx.drawImage(explosionSprite,startX,startY,100,100,brickX, brickY,50,50);
+          
+          ctx.closePath();
+       }
+       
+       function collapseCheck()
+       {
+           
+           for(var i=0;i<2;++i)
+           {
+               var brickRow = bricks[i];
+               
+               for(var j=0;j<brickRow.length;++j)
+               {
+                   var brick = brickRow[j];
+                   if((ballX>=brick.brickStartX)&&(ballX<=brick.brickEndX)&&((ballY-21)<=brick.brickEndY))
+                   {
+                       brick.collapsed=true;
+                       brickRow[j]=brick;
+                   }
+               }
+               
+               bricks[i]=brickRow;
+           }
+           
+       }
+       
+       
+
+       function renderBricks()
+       {
+           var success = true;
+            for(var i=0;i<2;++i)
+           {
+               var brickRow = bricks[i];
+
+               for(var j=0;j<brickRow.length;++j)
+               {
+                   var brick = brickRow[j];
+                   ctx.beginPath();
+                  if(!brick.collapsed)
+                  {
+                      ctx.drawImage(brickImg,brick.brickStartX,brick.brickStartY,brickWidth, brickHeight);
+                      ctx.strokeStyle="brown";
+                      success=false;
+                  }
+                  else
+                  {
+                      
+                      if(brick.explosionCount<=72)
+                      {
+                          if(brick.explosionCount==1)
+                          {
+                              explosionSound.play();
+                          }
+                          
+                          renderExplosion(brick.explosionCount,(brick.brickStartX+brick.brickEndX)/2, (brick.brickStartY+brick.brickEndY)/2);
+                          
+                          
+                          if(explosionInterval==8)
+                          {
+                          ++brick.explosionCount;
+                          brickRow[j] = brick;
+                          explosionInterval=1;
+                         }
+                         ++explosionInterval;
+                      }
+                      else
+                      {
+                         renderExplosion(72,(brick.brickStartX+brick.brickEndX)/2, (brick.brickStartY+brick.brickEndY)/2);
+                      }
+                     
+                  }
+                  
+                  ctx.stroke();
+                  ctx.closePath();
+                  
+               }
+               bricks[i] = brickRow; 
+                
+           }
+           
+           if(success)
+           {
+               gameMusic.loop = false;
+                  gameMusic.pause();
+               victorySound.play();
+               alert("You win!");
+               location.reload();
+           }
+           
+       }
+       
+       woodImage.onload = function()
+       {
+         
+          
+           ballSprite = new Image();
+           
+           ballSprite.onload = function()
+           {
+            brickImg = new Image();
+            brickImg.onload = function()
+            {
+                
+                explosionSprite = new Image();
+                
+                explosionSprite.onload = function()
+                {
+                    
+                    backgroundImg = new Image();
+                    
+                    backgroundImg.onload= function()
+                    {
+                        
+                        
+                         initBricks(gameCanvas.width/8,0)
+                    startGame();
+                    }
+                    
+                    
+                    backgroundImg.src="./moon.jpg";
+                    
+                    
+                    
+                }
+                
+                
+                explosionSprite.src="explosion.png";
+                
+              
+            }
+            
+            
+            brickImg.src="./brick.jpg";
+            
+                
+               
+           }
+           
+           ballSprite.src="./ui_ball.png";
+         
+       }
+       
+        woodImage.src="./paddle.png";
+        
+        
+       function drawPaddle()
+       {
+           
+           if(leftPressed)
+           {
+               if(paddleX>0)
+               {
+                   paddleX-=5;
+               }
+               
+               if(successCondition)
+               {
+                if ((ballY+36)>=gameCanvas.height)
+                {
+                    dx=Math.abs(dx);
+                    dx=-dx;
+                    
+                    ballX-=2;
+                    
+                    if(spacePressed)
+                    {
+                        dx=0;
+                    }
+                    
+                }
+               }
+              
+           }
+           
+           if(rightPressed)
+           {
+               if((paddleX+130)<gameCanvas.width)
+               {
+                   paddleX+=5;
+               }
+               
+               if(successCondition)
+               {
+                    if ((ballY+36)>=gameCanvas.height)
+                    {
+                        dx=Math.abs(dx);
+                        
+                        ballX+=2;
+                    }
+               }
+               
+           }
+           
+           
+           ctx.beginPath();
+         
+           
+           ctx.drawImage(woodImage,paddleX,paddleY, 130,15);
+   
+           ctx.closePath();
+       }
+       
+       
+       
+       function exec()
+       {
+           
+           ctx.clearRect(0,0,gameCanvas.width, gameCanvas.height);
+          ctx.drawImage(backgroundImg,0,0,gameCanvas.width, gameCanvas.height);
+           ctx.beginPath();
+           ctx.rect(0,0,gameCanvas.width, gameCanvas.height);
+           ctx.strokeStyle="black";
+           ctx.stroke();
+          
+           renderBricks((gameCanvas.width/3), 0);
+           drawBall();
+           collapseCheck();
+           drawPaddle();
+            ctx.closePath();
+       }
+       
+       
+       
+       function startGame()
+       {
+           gameMusic.play();
+           setInterval(exec, 5);
+           
+          
+       }
+       
+       
+     });
+     
+ </script>    
+     
+ </HEAD>
+ 
+ <BODY>
+     
+     <canvas height="768" width="1024" id="gameCanvas">
+         
+     </canvas>
+     
+     <audio id="victory"> 
+         <source src="./cheering.mp3" type="audio/mpeg" />
+     </audio>
+     
+     <audio id="explosion">
+         
+         <source src="./explosion.mp3" type="audio/mpeg" />
+         
+     </audio>
+     
+      <audio id="gameOver">
+         
+         <source src="./gameOver.mp3" type="audio/mpeg" />
+         
+     </audio>
+     
+      <audio id="music">
+         
+         <source src="./gameMusic.mp3" type="audio/mpeg" />
+         
+     </audio>
+     
+     
+ </BODY>
+ 
+ </HTML>
